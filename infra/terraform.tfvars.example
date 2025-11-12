@@ -1,0 +1,6 @@
+yc_zone        = ""
+yc_folder_id   = ""
+yc_cloud_id    = ""
+yc_token       = ""
+bucket_name    = ""
+ssh_public_key = ""
