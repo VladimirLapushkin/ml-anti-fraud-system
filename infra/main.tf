@@ -45,9 +45,9 @@ resource "yandex_vpc_subnet" "subnet" {
   v4_cidr_blocks = ["10.5.0.0/24"]
 }
 
-//
-// Create a new IAM Service Account (SA).
-//
+
+ //Create a new IAM Service Account (SA).
+
 resource "yandex_iam_service_account" "sa" {
   name        = var.sa_name
   description = "Service Account for OTUS Terraform course"

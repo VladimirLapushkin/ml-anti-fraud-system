@@ -56,6 +56,6 @@ variable "platform_id" {
 }
 
 variable "sa_name" {
-  type    = string
-  default = "storage-editor"
+  type    = string//
+default = "storage-editor"
 }
