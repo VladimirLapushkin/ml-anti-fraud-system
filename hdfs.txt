@@ -1,0 +1,43 @@
+root@rc1a-dataproc-m-3cke1t542t79bjqk:/# hdfs dfs -ls /user/ubuntu/data
+Found 40 items
+-rw-r--r--   1 ubuntu hadoop 2807409271 2025-11-14 16:59 /user/ubuntu/data/2019-08-22.txt
+-rw-r--r--   1 ubuntu hadoop 2854479008 2025-11-14 17:03 /user/ubuntu/data/2019-09-21.txt
+-rw-r--r--   1 ubuntu hadoop 2895460543 2025-11-14 16:52 /user/ubuntu/data/2019-10-21.txt
+-rw-r--r--   1 ubuntu hadoop 2939120942 2025-11-14 16:38 /user/ubuntu/data/2019-11-20.txt
+-rw-r--r--   1 ubuntu hadoop 2995462277 2025-11-14 16:43 /user/ubuntu/data/2019-12-20.txt
+-rw-r--r--   1 ubuntu hadoop 2994906767 2025-11-14 17:01 /user/ubuntu/data/2020-01-19.txt
+-rw-r--r--   1 ubuntu hadoop 2995431240 2025-11-14 16:42 /user/ubuntu/data/2020-02-18.txt
+-rw-r--r--   1 ubuntu hadoop 2995176166 2025-11-14 16:37 /user/ubuntu/data/2020-03-19.txt
+-rw-r--r--   1 ubuntu hadoop 2996034632 2025-11-14 16:44 /user/ubuntu/data/2020-04-18.txt
+-rw-r--r--   1 ubuntu hadoop 2995666965 2025-11-14 16:38 /user/ubuntu/data/2020-05-18.txt
+-rw-r--r--   1 ubuntu hadoop 2994699401 2025-11-14 17:05 /user/ubuntu/data/2020-06-17.txt
+-rw-r--r--   1 ubuntu hadoop 2995810010 2025-11-14 17:00 /user/ubuntu/data/2020-07-17.txt
+-rw-r--r--   1 ubuntu hadoop 2995995152 2025-11-14 16:51 /user/ubuntu/data/2020-08-16.txt
+-rw-r--r--   1 ubuntu hadoop 2995778382 2025-11-14 16:53 /user/ubuntu/data/2020-09-15.txt
+-rw-r--r--   1 ubuntu hadoop 2995868596 2025-11-14 16:58 /user/ubuntu/data/2020-10-15.txt
+-rw-r--r--   1 ubuntu hadoop 2995467533 2025-11-14 16:56 /user/ubuntu/data/2020-11-14.txt
+-rw-r--r--   1 ubuntu hadoop 2994761624 2025-11-14 16:54 /user/ubuntu/data/2020-12-14.txt
+-rw-r--r--   1 ubuntu hadoop 2995390576 2025-11-14 16:52 /user/ubuntu/data/2021-01-13.txt
+-rw-r--r--   1 ubuntu hadoop 2995780517 2025-11-14 17:07 /user/ubuntu/data/2021-02-12.txt
+-rw-r--r--   1 ubuntu hadoop 2995191659 2025-11-14 16:44 /user/ubuntu/data/2021-03-14.txt
+-rw-r--r--   1 ubuntu hadoop 2995446495 2025-11-14 16:57 /user/ubuntu/data/2021-04-13.txt
+-rw-r--r--   1 ubuntu hadoop 3029170975 2025-11-14 17:02 /user/ubuntu/data/2021-05-13.txt
+-rw-r--r--   1 ubuntu hadoop 3042691991 2025-11-14 17:06 /user/ubuntu/data/2021-06-12.txt
+-rw-r--r--   1 ubuntu hadoop 3041980335 2025-11-14 16:39 /user/ubuntu/data/2021-07-12.txt
+-rw-r--r--   1 ubuntu hadoop 3042662187 2025-11-14 17:03 /user/ubuntu/data/2021-08-11.txt
+-rw-r--r--   1 ubuntu hadoop 3042455173 2025-11-14 16:46 /user/ubuntu/data/2021-09-10.txt
+-rw-r--r--   1 ubuntu hadoop 3042424238 2025-11-14 16:59 /user/ubuntu/data/2021-10-10.txt
+-rw-r--r--   1 ubuntu hadoop 3042358698 2025-11-14 16:49 /user/ubuntu/data/2021-11-09.txt
+-rw-r--r--   1 ubuntu hadoop 3042923985 2025-11-14 16:45 /user/ubuntu/data/2021-12-09.txt
+-rw-r--r--   1 ubuntu hadoop 3042868087 2025-11-14 16:47 /user/ubuntu/data/2022-01-08.txt
+-rw-r--r--   1 ubuntu hadoop 3043148790 2025-11-14 17:04 /user/ubuntu/data/2022-02-07.txt
+-rw-r--r--   1 ubuntu hadoop 3042312191 2025-11-14 16:40 /user/ubuntu/data/2022-03-09.txt
+-rw-r--r--   1 ubuntu hadoop 3041973966 2025-11-14 17:06 /user/ubuntu/data/2022-04-08.txt
+-rw-r--r--   1 ubuntu hadoop 3073760161 2025-11-14 16:41 /user/ubuntu/data/2022-05-08.txt
+-rw-r--r--   1 ubuntu hadoop 3089378246 2025-11-14 16:48 /user/ubuntu/data/2022-06-07.txt
+-rw-r--r--   1 ubuntu hadoop 3089589719 2025-11-14 16:55 /user/ubuntu/data/2022-07-07.txt
+-rw-r--r--   1 ubuntu hadoop 3090000257 2025-11-14 16:48 /user/ubuntu/data/2022-08-06.txt
+-rw-r--r--   1 ubuntu hadoop 3089390874 2025-11-14 16:50 /user/ubuntu/data/2022-09-05.txt
+-rw-r--r--   1 ubuntu hadoop 3109468067 2025-11-14 16:41 /user/ubuntu/data/2022-10-05.txt
+-rw-r--r--   1 ubuntu hadoop 3136657969 2025-11-14 16:55 /user/ubuntu/data/2022-11-04.txt
+root@rc1a-dataproc-m-3cke1t542t79bjqk:/#

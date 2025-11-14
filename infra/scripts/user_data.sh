@@ -110,7 +110,7 @@ TARGET_BUCKET=${s3_bucket}
 SOURCE_BUCKET="otus-mlops-source-data"
 CONFIG_S3="/home/ubuntu/.s3cfg"
 
-# Копируем конкретный файл из исходного бакета в наш новый бакет
+# Копируем все файлы в наш новый бакет
 log "Copying file from source bucket to destination bucket"
 
 for file in $(s3cmd --config=$CONFIG_S3 ls s3://$SOURCE_BUCKET/ | awk '{print $4}'); do

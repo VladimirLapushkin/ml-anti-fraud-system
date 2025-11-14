@@ -1,9 +1,8 @@
 terraform.tfvars
 *.tfstate
 *.tfstate.backup
+*.tfstate.backup.*
+*.tfplan
 .terraform
-*.tfstate.lock.info
-images.txt
-.venv
-uv.lock
-infra/.terraform.lock.hcl
+*.info
+*.lock
