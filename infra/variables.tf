@@ -1,61 +1,133 @@
-variable "yc_zone" {
-  description = "Yandex Cloud availability zone"
-  type        = string
-  default     = "ru-central1-a"
-}
 
-variable "yc_folder_id" {
-  description = "Yandex Cloud folder ID"
+variable "yc_token" {
   type        = string
+  description = "Yandex Cloud OAuth token"
 }
 
 variable "yc_cloud_id" {
-  description = "Yandex Cloud cloud ID"
   type        = string
+  description = "Yandex Cloud ID"
 }
 
-variable "yc_token" {
-  description = "Yandex Cloud OAuth token"
+variable "yc_folder_id" {
   type        = string
+  description = "Yandex Cloud Folder ID"
 }
 
-variable "bucket_name" {
-  description = "Name of the storage bucket"
+variable "yc_zone" {
   type        = string
+  description = "Zone for Yandex Cloud resources"
 }
 
-variable "ssh_public_key" {
-  description = "Public SSH key for accessing the VM"
+variable "yc_instance_name" {
   type        = string
+  description = "Name of the virtual machine"
 }
 
-variable "disk_params" {
-  description = "Parameters for the compute disk"
+variable "yc_image_id" {
+  type        = string
+  description = "ID of the image for the virtual machine"
+}
+
+variable "yc_subnet_name" {
+  type        = string
+  description = "Name of the custom subnet"
+}
+
+variable "yc_service_account_name" {
+  type        = string
+  description = "Name of the service account"
+  default     = "value"
+}
+
+variable "yc_bucket_name" {
+  type        = string
+  description = "Name of the bucket"
+}
+
+variable "yc_network_name" {
+  type        = string
+  description = "Name of the network"
+}
+
+variable "yc_route_table_name" {
+  type        = string
+  description = "Name of the route table"
+}
+
+variable "yc_nat_gateway_name" {
+  type        = string
+  description = "Name of the NAT gateway"
+}
+
+variable "yc_security_group_name" {
+  type        = string
+  description = "Name of the security group"
+}
+
+variable "yc_subnet_range" {
+  type        = string
+  description = "CIDR block for the subnet"
+}
+
+variable "yc_dataproc_cluster_name" {
+  type        = string
+  description = "Name of the Dataproc cluster"
+}
+
+variable "yc_dataproc_version" {
+  type        = string
+  description = "Version of Dataproc"
+}
+
+variable "public_key_path" {
+  type        = string
+  description = "Path to the public key file"
+}
+
+variable "private_key_path" {
+  type        = string
+  description = "Path to the private key file"
+}
+
+variable "dataproc_master_resources" {
   type = object({
-    name : string
-    type : string
-    image_id : string
-    size: string
+  
+    resource_preset_id = string
+    disk_type_id       = string
+    disk_size          = number
+  
+    
   })
   default = {
-    name     = "otus-disk"
-    type     = "network-ssd"
-    image_id = "fd805qs1mn3n0casp7lt"
-    size = "20"
+    resource_preset_id = "s3-c2-m8"
+    disk_type_id       = "network-ssd"
+    disk_size          = 40
+    }
+}
+
+variable "dataproc_compute_resources" {
+  type = object({
+    resource_preset_id = string
+    disk_type_id       = string
+    disk_size          = number
+  })
+  default = {
+    resource_preset_id = "s3-c2-m8"
+    disk_type_id       = "network-ssd"
+    disk_size          = 50
   }
 }
 
-variable "vm_name" {
-  type    = string
-  default = "otus-vm"
-}
-
-variable "platform_id" {
-  type    = string
-  default = "standard-v3"
-}
-
-variable "sa_name" {
-  type    = string//
-default = "storage-editor"
+variable "dataproc_data_resources" {
+  type = object({
+    resource_preset_id = string
+    disk_type_id       = string
+    disk_size          = number
+  })
+  default = {
+    resource_preset_id = "s3-c4-m16"
+    disk_type_id       = "network-ssd"
+    disk_size          = 150
+  }
 }
