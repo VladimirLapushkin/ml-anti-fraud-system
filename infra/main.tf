@@ -11,8 +11,8 @@ resource "yandex_resourcemanager_folder_iam_member" "sa_roles" {
     "compute.admin",
     "dataproc.agent",
     "mdb.dataproc.agent",
-    "vpc.user",
-    "iam.serviceAccounts.user",
+    "vpc.admin",
+    "iam.serviceAccounts.admin",
     "storage.uploader",
     "storage.viewer",
     "storage.editor"
@@ -86,6 +86,7 @@ resource "yandex_vpc_security_group" "security_group" {
     description    = "Jupyter"
     v4_cidr_blocks = ["0.0.0.0/0"]
     port           = 8888
+
   }
 
   egress {
@@ -111,6 +112,34 @@ resource "yandex_vpc_security_group" "security_group" {
   }
 }
 
+
+resource "yandex_vpc_security_group" "proxy_sg" {
+  name       = "proxy-jupyter-sg"
+  network_id = yandex_vpc_network.network.id
+
+  ingress {
+    protocol       = "TCP"
+    description    = "Jupyter from Internet"
+    v4_cidr_blocks = ["0.0.0.0/0"]  # или свой IP-диапазон
+    from_port      = 80
+    to_port        = 80
+  }
+
+  ingress {
+    protocol       = "TCP"
+    description    = "SSH"
+    v4_cidr_blocks = ["0.0.0.0/0"]
+    from_port      = 22
+    to_port        = 22
+  }
+
+  egress {
+    protocol       = "ANY"
+    v4_cidr_blocks = ["0.0.0.0/0"]
+  }
+}
+
+
 # Storage ресурсы
 resource "yandex_storage_bucket" "data_bucket" {
   bucket        = "${var.yc_bucket_name}-${var.yc_folder_id}"
@@ -120,13 +149,13 @@ resource "yandex_storage_bucket" "data_bucket" {
 }
 
 # Dataproc ресурсы
-resource "yandex_dataproc_cluster" "dataproc_cluster" {
+resource "yandex_dataproc_cluster" "dataproc_cluster"{
   depends_on  = [yandex_resourcemanager_folder_iam_member.sa_roles]
   bucket      = yandex_storage_bucket.data_bucket.bucket
   description = "Dataproc Cluster created by Terraform for OTUS project"
   name        = var.yc_dataproc_cluster_name
   labels = {
-    created_by = "terraform"
+  created_by = "terraform"
   }
   service_account_id = yandex_iam_service_account.sa.id
   zone_id            = var.yc_zone
@@ -137,12 +166,15 @@ resource "yandex_dataproc_cluster" "dataproc_cluster" {
     version_id = var.yc_dataproc_version
 
     hadoop {
-      services = ["HDFS", "YARN", "SPARK", "HIVE", "TEZ"]
+      #services = ["HDFS", "YARN", "SPARK", "HIVE", "TEZ"]
+      services = ["HDFS", "YARN", "SPARK", "TEZ"]
       properties = {
         "yarn:yarn.resourcemanager.am.max-attempts" = 5
       }
       ssh_public_keys = [file(var.public_key_path)]
     }
+     
+   
 
     subcluster_spec {
       name = "master"
@@ -155,7 +187,7 @@ resource "yandex_dataproc_cluster" "dataproc_cluster" {
       }
       subnet_id        = yandex_vpc_subnet.subnet.id
       hosts_count      = 1
-      assign_public_ip = true
+      assign_public_ip = false
     }
 
       subcluster_spec {
@@ -197,13 +229,20 @@ resource "yandex_compute_instance" "proxy" {
   allow_stopping_for_update = true
   platform_id               = "standard-v3"
   zone                      = var.yc_zone
+  
+  
   service_account_id        = yandex_iam_service_account.sa.id
+  
+    network_interface {
+    subnet_id          = yandex_vpc_subnet.subnet.id
+    nat                = true
+    security_group_ids = [yandex_vpc_security_group.proxy_sg.id]
+  }
 
   metadata = {
     ssh-keys = "ubuntu:${file(var.public_key_path)}"
     user-data = templatefile("${path.root}/scripts/user_data.sh", {
       token                       = var.yc_token
-      //cloud_master                = 
       cloud_id                    = var.yc_cloud_id
       folder_id                   = var.yc_folder_id
       private_key                 = file(var.private_key_path)
@@ -211,8 +250,12 @@ resource "yandex_compute_instance" "proxy" {
       secret_key                  = yandex_iam_service_account_static_access_key.sa-static-key.secret_key
       s3_bucket                   = yandex_storage_bucket.data_bucket.bucket
       upload_data_to_hdfs_content = file("${path.root}/scripts/upload_data_to_hdfs.sh")
+      upload_py_script = file("${path.root}/scripts/clean.py")
+      upload_bucket_env = file("${path.root}/s3_bucket_clean.env")
+           
     })
   }
+
 
   scheduling_policy {
     preemptible = true
@@ -227,10 +270,10 @@ resource "yandex_compute_instance" "proxy" {
     disk_id = yandex_compute_disk.boot_disk.id
   }
 
-  network_interface {
-    subnet_id = yandex_vpc_subnet.subnet.id
-    nat       = true
-  }
+  # network_interface {
+  #   subnet_id = yandex_vpc_subnet.subnet.id
+  #   nat       = true
+  # }
 
   metadata_options {
     gce_http_endpoint = 1

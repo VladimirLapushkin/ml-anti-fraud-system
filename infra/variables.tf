@@ -45,6 +45,7 @@ variable "yc_bucket_name" {
   description = "Name of the bucket"
 }
 
+
 variable "yc_network_name" {
   type        = string
   description = "Name of the network"
