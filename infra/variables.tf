@@ -1,134 +1,71 @@
-
-variable "yc_token" {
-  type        = string
-  description = "Yandex Cloud OAuth token"
-}
-
-variable "yc_cloud_id" {
-  type        = string
-  description = "Yandex Cloud ID"
-}
-
-variable "yc_folder_id" {
-  type        = string
-  description = "Yandex Cloud Folder ID"
-}
-
-variable "yc_zone" {
-  type        = string
-  description = "Zone for Yandex Cloud resources"
+variable "yc_instance_user" {
+  type = string  
 }
 
 variable "yc_instance_name" {
-  type        = string
-  description = "Name of the virtual machine"
+  type = string  
 }
 
-variable "yc_image_id" {
-  type        = string
-  description = "ID of the image for the virtual machine"
+variable "yc_network_name" {
+  type = string
 }
 
 variable "yc_subnet_name" {
-  type        = string
-  description = "Name of the custom subnet"
+  type = string
 }
 
 variable "yc_service_account_name" {
-  type        = string
-  description = "Name of the service account"
-  default     = "value"
+  type    = string
 }
 
 variable "yc_bucket_name" {
-  type        = string
-  description = "Name of the bucket"
+  type = string
 }
 
-
-variable "yc_network_name" {
-  type        = string
-  description = "Name of the network"
+variable "yc_storage_endpoint_url" {
+  type = string
+  default = "https://storage.yandexcloud.net"
 }
 
-variable "yc_route_table_name" {
-  type        = string
-  description = "Name of the route table"
-}
-
-variable "yc_nat_gateway_name" {
-  type        = string
-  description = "Name of the NAT gateway"
-}
-
-variable "yc_security_group_name" {
-  type        = string
-  description = "Name of the security group"
-}
-
-variable "yc_subnet_range" {
-  type        = string
-  description = "CIDR block for the subnet"
-}
-
-variable "yc_dataproc_cluster_name" {
-  type        = string
-  description = "Name of the Dataproc cluster"
-}
-
-variable "yc_dataproc_version" {
-  type        = string
-  description = "Version of Dataproc"
+variable "ubuntu_image_id" {
+  type    = string
 }
 
 variable "public_key_path" {
-  type        = string
-  description = "Path to the public key file"
+  type = string
 }
 
 variable "private_key_path" {
-  type        = string
-  description = "Path to the private key file"
+  type = string
 }
 
-variable "dataproc_master_resources" {
-  type = object({
-  
-    resource_preset_id = string
-    disk_type_id       = string
-    disk_size          = number
-  
-    
-  })
-  default = {
-    resource_preset_id = "s3-c2-m8"
-    disk_type_id       = "network-ssd"
-    disk_size          = 40
-    }
+variable "yc_clean_bucket_ak" {
+  type = string
+}
+variable "yc_clean_bucket_sk" {
+  type = string
+}
+variable "yc_clean_bucket_path" {
+  type = string
+}
+variable "yc_source_bucket" {
+  type = string
+}
+variable "admin_password" {
+  type = string
+  description = "Admin password for the Airflow web interface"
 }
 
-variable "dataproc_compute_resources" {
+variable "yc_config" {
   type = object({
-    resource_preset_id = string
-    disk_type_id       = string
-    disk_size          = number
+    zone      = string
+    folder_id = string
+    token     = string
+    cloud_id  = string
   })
-  default = {
-    resource_preset_id = "s3-c2-m8"
-    disk_type_id       = "network-ssd"
-    disk_size          = 50
-  }
+  description = "Yandex Cloud configuration"
 }
 
-variable "dataproc_data_resources" {
-  type = object({
-    resource_preset_id = string
-    disk_type_id       = string
-    disk_size          = number
-  })
-  default = {
-    resource_preset_id = "s3-c4-m16"
-    disk_type_id       = "network-ssd"
-    disk_size          = 150
-  }
+variable "airflow_db_conn_default" {
+  type = string
 }
