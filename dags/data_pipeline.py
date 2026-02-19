@@ -1,55 +1,65 @@
 """
-DAG: data_pipeline_seq 
+DAG: fraud_detection_training
+Description: DAG for periodic training of fraud detection model with Dataproc and PySpark.
 """
 
-import json
 import uuid
-import logging
 from datetime import datetime, timedelta
 from airflow import DAG
-from airflow.operators.python import ShortCircuitOperator, PythonOperator
+from airflow.operators.python import PythonOperator
 from airflow.settings import Session
 from airflow.models import Connection, Variable
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.providers.yandex.operators.dataproc import (
     DataprocCreateClusterOperator,
+    DataprocCreatePysparkJobOperator,
     DataprocDeleteClusterOperator
 )
-from airflow.providers.amazon.aws.hooks.s3 import S3Hook
-from airflow.providers.yandex.hooks.dataproc import DataprocHook
 
-logger = logging.getLogger(__name__)
-
-cluster_uuid = str(uuid.uuid4())[-8:]
-cluster_name = f"spark-seq-{cluster_uuid}"
 
 YC_ZONE = Variable.get("YC_ZONE")
 YC_FOLDER_ID = Variable.get("YC_FOLDER_ID")
 YC_SUBNET_ID = Variable.get("YC_SUBNET_ID")
 YC_SSH_PUBLIC_KEY = Variable.get("YC_SSH_PUBLIC_KEY")
+
+# Переменные для подключения к Object Storage
 S3_ENDPOINT_URL = Variable.get("S3_ENDPOINT_URL")
 S3_ACCESS_KEY = Variable.get("S3_ACCESS_KEY")
 S3_SECRET_KEY = Variable.get("S3_SECRET_KEY")
 S3_BUCKET_NAME = Variable.get("S3_BUCKET_NAME")
-S3_SRC_BUCKET = S3_BUCKET_NAME
+#S3_INPUT_DATA_BUCKET = f"s3a://{S3_BUCKET_NAME}/input_data"     # Путь к данным
+S3_SRC_BUCKET = f"s3a://{S3_BUCKET_NAME}/src"                   # Путь к исходному коду
 S3_DP_LOGS_BUCKET = Variable.get("S3_DP_LOGS_BUCKET", default_var=S3_BUCKET_NAME + "/airflow_logs/")
+#S3_DP_LOGS_BUCKET = f"s3a://{S3_BUCKET_NAME}/airflow_logs/"     # Путь для логов Data Proc
+S3_CLEAN_PATH = Variable.get("S3_CLEAN_PATH")
+S3_CLEAN_ACCESS_KEY = Variable.get("S3_CLEAN_ACCESS_KEY")
+S3_CLEAN_SECRET_KEY = Variable.get("S3_CLEAN_SECRET_KEY")
+S3_OUTPUT_MODEL_BUCKET = f"s3a://{S3_BUCKET_NAME}/models"       # Путь для сохранения моделей
+S3_VENV_ARCHIVE = f"s3a://{S3_BUCKET_NAME}/venvs/venv38.tar.gz"
+
+
+# Переменные необходимые для создания Dataproc кластера
 DP_SA_AUTH_KEY_PUBLIC_KEY = Variable.get("DP_SA_AUTH_KEY_PUBLIC_KEY")
 DP_SA_JSON = Variable.get("DP_SA_JSON")
 DP_SA_ID = Variable.get("DP_SA_ID")
-S3_CLEAN_ACCESS_KEY = Variable.get("S3_CLEAN_ACCESS_KEY")
-S3_CLEAN_SECRET_KEY = Variable.get("S3_CLEAN_SECRET_KEY")
-S3_CLEAN_PATH = Variable.get("S3_CLEAN_PATH")
+DP_SECURITY_GROUP_ID = Variable.get("DP_SECURITY_GROUP_ID")
 
-# Connections
+# MLflow переменные
+MLFLOW_TRACKING_URI = Variable.get("MLFLOW_TRACKING_URI")
+MLFLOW_EXPERIMENT_NAME = "fraud_detection"
+
+# Создание подключения для Object Storage
 YC_S3_CONNECTION = Connection(
     conn_id="yc-s3",
     conn_type="s3",
     host=S3_ENDPOINT_URL,
-    login=S3_ACCESS_KEY,
-    password=S3_SECRET_KEY,
-    extra={"region_name": "us-east-1"},
+    extra={
+        "aws_access_key_id": S3_ACCESS_KEY,
+        "aws_secret_access_key": S3_SECRET_KEY,
+        "host": S3_ENDPOINT_URL,
+    },
 )
-
+# Создание подключения для Dataproc
 YC_SA_CONNECTION = Connection(
     conn_id="yc-sa",
     conn_type="yandexcloud",
@@ -59,206 +69,171 @@ YC_SA_CONNECTION = Connection(
     },
 )
 
-def setup_airflow_connections(*connections):
+
+
+
+def setup_airflow_connections(*connections: Connection) -> None:
     session = Session()
     try:
-
         for conn in connections:
-            existing = session.query(Connection).filter(Connection.conn_id == conn.conn_id).first()
-            if not existing:
+            print("Checking connection:", conn.conn_id)
+            if not session.query(Connection).filter(Connection.conn_id == conn.conn_id).first():
                 session.add(conn)
-                logger.info(f" {conn.conn_id} создан")
-
+                print("Added connection:", conn.conn_id)
         session.commit()
-
-
-        s3_hook = S3Hook('yc-s3')
-        bucket_ok = s3_hook.check_for_bucket(S3_BUCKET_NAME)
-        logger.info(f" S3 бакет {S3_BUCKET_NAME}: {'OK' if bucket_ok else 'FAIL'}")
-
     except Exception as e:
         session.rollback()
-        logger.error(f" Setup: {e}")
-        raise
+        raise e
     finally:
         session.close()
 
-def run_setup(**kwargs):
+
+# Функция для выполнения setup_airflow_connections в рамках оператора
+def run_setup_connections(**kwargs):
     setup_airflow_connections(YC_S3_CONNECTION, YC_SA_CONNECTION)
     return True
 
-def init_file_list(**kwargs):
-    """Инициализация списка файлов"""
-    try:
-        file_list = Variable.get("source_file_list", deserialize_json=True)
-        logger.info(f"Готово: {len(file_list)} файлов")
-        return True
-    except:
-        logger.info("Сканируем публичный бакет.")
-        import requests
-        from xml.etree import ElementTree as ET
 
-        url = "https://storage.yandexcloud.net/otus-mlops-source-data/?list-type=2"
-        resp = requests.get(url, timeout=30)
-        if resp.status_code != 200:
-            raise ValueError(f" HTTP {resp.status_code}")
-
-        root = ET.fromstring(resp.content)
-        ns = {'s3': 'http://s3.amazonaws.com/doc/2006-03-01/'}
-        files = sorted([
-            el.find('s3:Key', ns).text
-            for el in root.findall('.//s3:Contents', ns)
-            if el.find('s3:Key', ns) is not None and el.find('s3:Key', ns).text.endswith('.txt')
-        ])
-
-        if not files:
-            raise ValueError(" Нет  файлов!")
-
-        Variable.set("source_file_list", files, serialize_json=True)
-        Variable.set("current_file_index", "0")
-        logger.info(f" {len(files)} файлов: {files[:3]}...")
-        return True
-
-def check_next_file(**kwargs):
-    ti = kwargs['ti']
-    try:
-        file_list = Variable.get("source_file_list", deserialize_json=True)
-        idx = int(Variable.get("current_file_index", default_var="0"))
-    except:
-        raise ValueError(" Список не готов")
-
-    if idx >= len(file_list):
-        logger.info(f" Всего {len(file_list)} обработано!")
-        return False
-
-    file_name = file_list[idx]
-
-    # XCom
-    ti.xcom_push(key='current_file_path', value=file_name)
-    ti.xcom_push(key='current_file', value=file_name)
-    ti.xcom_push(key='file_key', value=file_name)
-    ti.xcom_push(key='total_files', value=len(file_list))
-
-    logger.info(f"[{idx+1}/{len(file_list)}] {file_name}")
-    return True
-
-def generate_args(**kwargs):
-    ti = kwargs['ti']
-    file_path = ti.xcom_pull(task_ids='check_next_file', key='current_file_path')
-    clean_key = file_path.replace('/', '_').replace('.txt', '')
-
-    ti.xcom_push(key='current_file_path', value=file_path)
-    ti.xcom_push(key='clean_file_name', value=clean_key)
-
-    logger.info(f" File: {file_path} -> {clean_key}")
-    return file_path
-
-def increment_index(**kwargs):
-    idx = int(Variable.get("current_file_index", default_var="0")) + 1
-    Variable.set("current_file_index", str(idx))
-    ti = kwargs['ti']
-    total = ti.xcom_pull(task_ids='check_next_file', key='total_files') or 0
-    logger.info(f"Индекс: {idx}/{total}")
-    return True
-
-def run_pyspark_job(**kwargs):
-    ti = kwargs['ti']
-
-    cluster_id = ti.xcom_pull(task_ids='create_cluster', key='return_value')
-    logger.info(f"Cluster: {cluster_id}")
-
-    file_path = ti.xcom_pull(task_ids='check_next_file', key='current_file_path')
-    clean_key = ti.xcom_pull(task_ids='generate_args', key='clean_file_name')
-
-    args = [
-        "--source-bucket", "otus-mlops-source-data",
-        "--source-key", file_path,
-        "--clean-access-key", S3_CLEAN_ACCESS_KEY,
-        "--clean-secret-key", S3_CLEAN_SECRET_KEY,
-        "--clean-path", f"s3a://mlops-2025-dz3/clean-data/{clean_key}/"
-    ]
-
-    logger.info(f"Args: {' '.join(args)}")
-
-    hook = DataprocHook(yandex_conn_id='yc-sa')
-    client = hook.dataproc_client
-
-    job_name = f"clean-data-{kwargs['ds_nodash']}-{clean_key}"
-
-    job_operation = client.create_pyspark_job(
-        cluster_id=cluster_id,
-        main_python_file_uri=f"s3a://{S3_SRC_BUCKET}/src/pyspark_script.py",
-        args=args,
-        name=job_name
-    )
-
-    logger.info(f"PySpark job '{job_name}' завершен")
-    return job_name
-
+# Настройки DAG
+default_args = {
+    'owner': 'Vladimir Lapushkin',
+    'depends_on_past': False,
+    'email_on_failure': False,
+    'email_on_retry': False,
+    'retries': 0,
+    'retry_delay': timedelta(minutes=5),
+}
 
 with DAG(
-    dag_id="data_pipeline_seq",
-    start_date=datetime(2025, 6, 10),
-    schedule_interval=timedelta(minutes=60),
+    dag_id="training_pipeline",
+    default_args=default_args,
+    description="Periodic training of fraud detection model",
+    schedule=None,
+    #schedule_interval=timedelta(minutes=600),  # Запуск каждые 60 минут
+    start_date=datetime(2025, 3, 27),
     catchup=False,
-    max_active_runs=1,
-    default_args={'retries': 2, 'retry_delay': timedelta(minutes=5)},
+    tags=['mlops', ],
 ) as dag:
+    # Задача для создания подключений
+    setup_connections = PythonOperator(
+        task_id="setup_connections",
+        python_callable=run_setup_connections,
+    )
 
-    setup = PythonOperator(task_id='setup', python_callable=run_setup)
-    init_files = PythonOperator(task_id='init_files', python_callable=init_file_list)
-    check_file = ShortCircuitOperator(task_id='check_next_file', python_callable=check_next_file)
-    generate_args_task = PythonOperator(task_id='generate_args', python_callable=generate_args)
-
-    create_cluster = DataprocCreateClusterOperator(
-        task_id="create_cluster",
+    # Создание Dataproc кластера
+    create_spark_cluster = DataprocCreateClusterOperator(
+        task_id="spark-cluster-create-task",
         folder_id=YC_FOLDER_ID,
-        cluster_name=cluster_name,
+        cluster_name=f"tmp-dp-training-{uuid.uuid4()}",
+        cluster_description="YC Temporary cluster for model training",
         subnet_id=YC_SUBNET_ID,
         s3_bucket=S3_DP_LOGS_BUCKET,
         service_account_id=DP_SA_ID,
         ssh_public_keys=YC_SSH_PUBLIC_KEY,
         zone=YC_ZONE,
         cluster_image_version="2.0",
+
+        # masternode
         masternode_resource_preset="s3-c2-m8",
         masternode_disk_type="network-ssd",
         masternode_disk_size=50,
+
+        # datanodes
         datanode_resource_preset="s3-c4-m16",
         datanode_disk_type="network-ssd",
-        datanode_disk_size=70,
+        datanode_disk_size=50,
         datanode_count=3,
-        properties={
-            "yarn:yarn.nodemanager.resource.memory-mb": "32000",
-            "yarn:yarn.scheduler.capacity.root.queues.default.user-limit-factor": "1.0",
-            "yarn:yarn.scheduler.capacity.maximum-am-resource-percent": "0.8",
-            "spark:spark.driver.memory": "512m",
-            "spark:spark.executor.memory": "2g",
-            "spark:spark.executor.instances": "1",
-            "spark:spark.dynamicAllocation.enabled": "true",
-            "spark:spark.dynamicAllocation.minExecutors": "1",
-        },
+
+        # computenodes
         computenode_count=0,
+
+        # software
         services=["YARN", "SPARK", "HDFS", "MAPREDUCE"],
-        connection_id="yc-sa",
+        connection_id=YC_SA_CONNECTION.conn_id,
+        enable_ui_proxy=True,    
+        dag=dag,
     )
 
-    pyspark_job = PythonOperator(task_id='pyspark_job', python_callable=run_pyspark_job)
-
-    delete_cluster = DataprocDeleteClusterOperator(
-    task_id="delete_cluster",
-    cluster_id="{{ ti.xcom_pull(task_ids='create_cluster', key='return_value') }}",
-    connection_id="yc-sa",
-    trigger_rule=TriggerRule.ALL_DONE,
-)
+    #cluster_id_tmpl = "{{ ti.xcom_pull(task_ids='spark-cluster-create-task', key='return_value') }}"
+    cluster_id_tmpl = "{{ ti.xcom_pull(task_ids='spark-cluster-create-task', key='cluster_id') }}"
 
 
-    increment = PythonOperator(
-        task_id='increment_index',
-        python_callable=increment_index,
+    # Pyspark for clean dataset
+    etl_job = DataprocCreatePysparkJobOperator(
+        cluster_id=cluster_id_tmpl,
+        task_id="clean",
+        main_python_file_uri=f"{S3_SRC_BUCKET}/etl_clean_merge.py",
+        connection_id=YC_SA_CONNECTION.conn_id,
+        dag=dag,
+        args=[
+            "--source-bucket", "otus-mlops-source-data",
+            "--s3-endpoint", S3_ENDPOINT_URL,
+            "--clean-access-key", S3_CLEAN_ACCESS_KEY,
+            "--clean-secret-key", S3_CLEAN_SECRET_KEY,
+            "--clean-path", f"{S3_CLEAN_PATH.rstrip('/')}/history/",
+            "--take-n", "1",
+            "--start-date", "2019-08-22",
+            "--max-scan-days", "365",
+        ],
+
+        properties={
+            "spark.submit.deployMode": "cluster",
+            "spark.yarn.dist.archives": f"{S3_VENV_ARCHIVE}#.venv",
+            "spark.yarn.appMasterEnv.PYSPARK_PYTHON": "./.venv/bin/python",
+            "spark.yarn.appMasterEnv.PYSPARK_DRIVER_PYTHON": "./.venv/bin/python",
+            "spark.executorEnv.PYSPARK_PYTHON": "./.venv/bin/python",
+            "spark.pyspark.python": "./.venv/bin/python",
+            "spark.pyspark.driver.python": "./.venv/bin/python",
+            
+
+        },
+    )
+    
+    # Train
+    train_job = DataprocCreatePysparkJobOperator(
+        cluster_id=cluster_id_tmpl,
+        task_id="train",
+        main_python_file_uri=f"{S3_SRC_BUCKET}/train.py",
+        connection_id=YC_SA_CONNECTION.conn_id,
+        dag=dag,
+        args=[
+            "--s3-endpoint", S3_ENDPOINT_URL,
+            "--access-key", S3_CLEAN_ACCESS_KEY,
+            "--secret-key", S3_CLEAN_SECRET_KEY,
+            "--input", f"{S3_CLEAN_PATH.rstrip('/')}/history/by_file/",
+            "--output", f"{S3_OUTPUT_MODEL_BUCKET}/model_{datetime.now().strftime('%Y%m%d')}",
+            "--tracking-uri", MLFLOW_TRACKING_URI,
+            "--experiment-name", MLFLOW_EXPERIMENT_NAME,
+            "--auto-register",  # Включаем автоматическую регистрацию лучшей модели
+            "--last-n", "5",
+        ],
+        properties={
+            "spark.submit.deployMode": "cluster",
+            "spark.yarn.dist.archives": f"{S3_VENV_ARCHIVE}#.venv",
+            "spark.yarn.appMasterEnv.PYSPARK_PYTHON": "./.venv/bin/python",
+            "spark.yarn.appMasterEnv.PYSPARK_DRIVER_PYTHON": "./.venv/bin/python",
+            "spark.executorEnv.PYSPARK_PYTHON": "./.venv/bin/python",
+            "spark.pyspark.python": "./.venv/bin/python",
+            "spark.pyspark.driver.python": "./.venv/bin/python",
+
+            "spark.dynamicAllocation.enabled": "false",
+            "spark.executor.instances": "9",
+            "spark.executor.cores": "2",
+            "spark.executor.memory": "6g",
+            "spark.driver.memory": "4g",
+            "spark.sql.shuffle.partitions": "96",
+
+        },
+    )
+
+    # Удаление Dataproc кластера
+    delete_spark_cluster = DataprocDeleteClusterOperator(
+        task_id="spark-cluster-delete-task",
+        cluster_id=cluster_id_tmpl,
+        connection_id=YC_SA_CONNECTION.conn_id,
         trigger_rule=TriggerRule.ALL_DONE,
+        dag=dag,
     )
 
-
-    setup >> init_files >> check_file
-    check_file >> generate_args_task >> create_cluster >> pyspark_job >> delete_cluster
-    [pyspark_job, delete_cluster] >> increment
+    #setup_connections >> create_spark_cluster >> etl_job >> delete_spark_cluster
+    setup_connections >> create_spark_cluster >>  etl_job >> train_job  >> delete_spark_cluster

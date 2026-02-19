@@ -31,6 +31,10 @@ variable "ubuntu_image_id" {
   type    = string
 }
 
+variable "ubuntu_image_id_mlflow" {
+  type    = string
+}
+
 variable "public_key_path" {
   type = string
 }
@@ -69,3 +73,31 @@ variable "yc_config" {
 variable "airflow_db_conn_default" {
   type = string
 }
+# MLflow variables
+variable "yc_mlflow_instance_name" {
+  type = string
+  description = "Name of the MLflow server instance"
+}
+
+# PostgreSQL variables
+variable "yc_postgres_cluster_name" {
+  type = string
+  description = "Name of the PostgreSQL cluster"
+}
+
+variable "postgres_password" {
+  type = string
+  description = "Password for PostgreSQL database used by MLflow"
+  sensitive = true
+}
+
+variable "instance_user" {
+  type    = string
+  default = "ubuntu"
+}
+
+variable "my_public_ip_cidr" {
+  description = "Your public IP in CIDR"
+  type        = string
+}
+

@@ -58,16 +58,34 @@ git-push-secrets:
 	@echo "Pushing secrets to github..."
 	python3 utils/push_secrets_to_github_repo.py
 
-sync-repo:
-	rsync -avz \
-		--exclude=.venv \
-		--exclude=infra/.terraform \
-		--exclude=*.tfstate \
-		--exclude=*.backup \
-		--exclude=*.json . yc-proxy:/home/ubuntu/otus/otus-practice-data-pipeline
 
-sync-env:
-	rsync -avz yc-proxy:/home/ubuntu/otus/otus-practice-data-pipeline/.env .env
-
+.PHONY: airflow-cluster-mon
 airflow-cluster-mon:
 	yc logging read --group-name=default --follow
+
+.PHONY: create-venv-archive
+create-venv-archive:
+	@echo "Creating .venv archive..."
+	mkdir -p venvs
+	chmod +x ./scripts/create_venv_archive.sh
+	bash ./scripts/create_venv_archive.sh
+	@echo "Archive created successfully"
+
+.PHONY: create-venv-archive-wsl
+create-venv-archive-wsl:
+	@echo "Creating .venv archive... wsl"
+	wsl.exe -d Ubuntu -e bash -lc "cd /mnt/c/MLOps/DZ_6 && make create-venv-archive"
+	@echo "Archive created wsl successfully"
+
+
+.PHONY: upload-venv-to-bucket
+upload-venv-to-bucket:
+	@echo "Uploading virtual environment archive to $(S3_BUCKET_NAME)..."
+	s3cmd put venvs/venv38.tar.gz s3://$(S3_BUCKET_NAME)/venvs/venv38.tar.gz
+	@echo "Virtual environment archive uploaded successfully"
+
+.PHONY: deploy-full
+deploy-full: create-venv-archive-wsl upload-venv-to-bucket upload-src-to-bucket upload-dags-to-bucket upload-data-to-bucket
+	@echo "Full deployment completed sumake ccessfully"
+	@echo "Virtual environment, source code, DAGs, and data have been uploaded to S3"
+	@echo "You can now run the pipeline in Airflow"
