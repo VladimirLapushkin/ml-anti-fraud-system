@@ -16,7 +16,7 @@ from airflow.providers.yandex.operators.dataproc import (
     DataprocDeleteClusterOperator
 )
 
-
+# Общие переменные для вашего облака
 YC_ZONE = Variable.get("YC_ZONE")
 YC_FOLDER_ID = Variable.get("YC_FOLDER_ID")
 YC_SUBNET_ID = Variable.get("YC_SUBNET_ID")
@@ -69,6 +69,10 @@ YC_SA_CONNECTION = Connection(
     },
 )
 
+# Проверка наличия подключений в Airflow
+# Если подключения отсутствуют, то они добавляются
+# и сохраняются в базе данных Airflow
+# Подключения используются для доступа к Object Storage и Dataproc
 
 
 
@@ -89,7 +93,8 @@ def setup_airflow_connections(*connections: Connection) -> None:
 
 
 # Функция для выполнения setup_airflow_connections в рамках оператора
-def run_setup_connections(**kwargs):
+def run_setup_connections(**kwargs): # pylint: disable=unused-argument
+    """Создает подключения внутри оператора"""
     setup_airflow_connections(YC_S3_CONNECTION, YC_SA_CONNECTION)
     return True
 
@@ -159,35 +164,35 @@ with DAG(
 
 
     # Pyspark for clean dataset
-    etl_job = DataprocCreatePysparkJobOperator(
-        cluster_id=cluster_id_tmpl,
-        task_id="clean",
-        main_python_file_uri=f"{S3_SRC_BUCKET}/etl_clean_merge.py",
-        connection_id=YC_SA_CONNECTION.conn_id,
-        dag=dag,
-        args=[
-            "--source-bucket", "otus-mlops-source-data",
-            "--s3-endpoint", S3_ENDPOINT_URL,
-            "--clean-access-key", S3_CLEAN_ACCESS_KEY,
-            "--clean-secret-key", S3_CLEAN_SECRET_KEY,
-            "--clean-path", f"{S3_CLEAN_PATH.rstrip('/')}/history/",
-            "--take-n", "1",
-            "--start-date", "2019-08-22",
-            "--max-scan-days", "365",
-        ],
+    # etl_job = DataprocCreatePysparkJobOperator(
+    #     cluster_id=cluster_id_tmpl,
+    #     task_id="clean",
+    #     main_python_file_uri=f"{S3_SRC_BUCKET}/etl_clean_merge.py",
+    #     connection_id=YC_SA_CONNECTION.conn_id,
+    #     dag=dag,
+    #     args=[
+    #         "--source-bucket", "otus-mlops-source-data",
+    #         "--s3-endpoint", S3_ENDPOINT_URL,
+    #         "--clean-access-key", S3_CLEAN_ACCESS_KEY,
+    #         "--clean-secret-key", S3_CLEAN_SECRET_KEY,
+    #         "--clean-path", f"{S3_CLEAN_PATH.rstrip('/')}/history/",
+    #         "--take-n", "1",
+    #         "--start-date", "2019-08-22",
+    #         "--max-scan-days", "365",
+    #     ],
 
-        properties={
-            "spark.submit.deployMode": "cluster",
-            "spark.yarn.dist.archives": f"{S3_VENV_ARCHIVE}#.venv",
-            "spark.yarn.appMasterEnv.PYSPARK_PYTHON": "./.venv/bin/python",
-            "spark.yarn.appMasterEnv.PYSPARK_DRIVER_PYTHON": "./.venv/bin/python",
-            "spark.executorEnv.PYSPARK_PYTHON": "./.venv/bin/python",
-            "spark.pyspark.python": "./.venv/bin/python",
-            "spark.pyspark.driver.python": "./.venv/bin/python",
+    #     properties={
+    #         "spark.submit.deployMode": "cluster",
+    #         "spark.yarn.dist.archives": f"{S3_VENV_ARCHIVE}#.venv",
+    #         "spark.yarn.appMasterEnv.PYSPARK_PYTHON": "./.venv/bin/python",
+    #         "spark.yarn.appMasterEnv.PYSPARK_DRIVER_PYTHON": "./.venv/bin/python",
+    #         "spark.executorEnv.PYSPARK_PYTHON": "./.venv/bin/python",
+    #         "spark.pyspark.python": "./.venv/bin/python",
+    #         "spark.pyspark.driver.python": "./.venv/bin/python",
             
 
-        },
-    )
+    #     },
+    # )
     
     # Train
     train_job = DataprocCreatePysparkJobOperator(
@@ -236,4 +241,5 @@ with DAG(
     )
 
     #setup_connections >> create_spark_cluster >> etl_job >> delete_spark_cluster
-    setup_connections >> create_spark_cluster >>  etl_job >> train_job  >> delete_spark_cluster
+    setup_connections >> create_spark_cluster >> train_job >> delete_spark_cluster
+    #setup_connections >> create_spark_cluster >>  etl_job >> train_job  >> delete_spark_cluster
