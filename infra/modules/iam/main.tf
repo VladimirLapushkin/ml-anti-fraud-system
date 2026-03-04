@@ -17,7 +17,9 @@ resource "yandex_resourcemanager_folder_iam_member" "sa_roles" {
     "storage.uploader",
     "storage.viewer",
     "storage.editor",
-    "logging.writer"
+    "logging.writer",
+    "managed-kafka.viewer",
+    "managed-kafka.interfaceUser"
   ])
 
   folder_id = var.provider_config.folder_id
@@ -48,11 +50,11 @@ resource "yandex_iam_service_account_key" "sa_auth_key" {
 
 resource "local_file" "sa_auth_key_file" {
   content = jsonencode({
-    id                  = yandex_iam_service_account_key.sa_auth_key.id
-    service_account_id  = yandex_iam_service_account_key.sa_auth_key.service_account_id
-    created_at          = yandex_iam_service_account_key.sa_auth_key.created_at
-    public_key          = yandex_iam_service_account_key.sa_auth_key.public_key
-    private_key         = regex("-----BEGIN PRIVATE KEY-----[\\s\\S]*$", yandex_iam_service_account_key.sa_auth_key.private_key)
+    id                 = yandex_iam_service_account_key.sa_auth_key.id
+    service_account_id = yandex_iam_service_account_key.sa_auth_key.service_account_id
+    created_at         = yandex_iam_service_account_key.sa_auth_key.created_at
+    public_key         = yandex_iam_service_account_key.sa_auth_key.public_key
+    private_key        = regex("-----BEGIN PRIVATE KEY-----[\\s\\S]*$", yandex_iam_service_account_key.sa_auth_key.private_key)
   })
   filename        = "${path.module}/authorized_key.json"
   file_permission = "0600"

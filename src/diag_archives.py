@@ -26,28 +26,28 @@ from pyspark.sql import SparkSession
 spark = SparkSession.builder.appName("diag-archives").getOrCreate()
 print("Spark version:", spark.version, flush=True)
 
-# принудительно создаём job, чтобы Spark поднял executor ---
+# --- ДОБАВИЛ: принудительно создаём job, чтобы Spark поднял executor ---
 print("Triggering a tiny Spark job to force executors...", flush=True)
 cnt = spark.range(1).count()
 print("spark.range(1).count() =", cnt, flush=True)
-
+# --- /ДОБАВИЛ ---
 
 sh("pwd; ls -la")
 
-# Проверим: .venv распакован
+# Проверим: .venv распакован (должна быть директория), и что внутри есть bin/
 sh("ls -la .venv || true")
 sh("stat .venv || true; readlink -f .venv || true")
 sh("ls -la .venv/bin || true")
 
-
+# Важно: правильное экранирование скобок для find (ОДИНАРНЫЕ \\( \\) для bash -lc)
 sh(r"find .venv -maxdepth 4 -type f \\( -name python -o -name python3 -o -name python3.9 -o -name pyvenv.cfg \\) -print | sed -n '1,200p'")
 
-
+# Проверим бинарник питона из venv (в venv-pack гарантированнее python/python3, чем python3.9)
 sh("command -v file >/dev/null 2>&1 && file .venv/bin/python || true")
 sh("command -v readelf >/dev/null 2>&1 && readelf -l .venv/bin/python | grep -i interpreter || true")
 sh("command -v ldd >/dev/null 2>&1 && ldd .venv/bin/python || true")
 
-# версия питона внутри venv (если запускается)
+# Дополнительно: версия питона внутри venv (если запускается)
 sh(".venv/bin/python -V || true")
 sh(".venv/bin/python -c \"import sys; print('exe=', sys.executable); print('prefix=', sys.prefix); print('base_prefix=', getattr(sys,'base_prefix', None))\" || true")
 

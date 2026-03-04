@@ -1,9 +1,9 @@
 variable "yc_instance_user" {
-  type = string  
+  type = string
 }
 
 variable "yc_instance_name" {
-  type = string  
+  type = string
 }
 
 variable "yc_network_name" {
@@ -15,7 +15,7 @@ variable "yc_subnet_name" {
 }
 
 variable "yc_service_account_name" {
-  type    = string
+  type = string
 }
 
 variable "yc_bucket_name" {
@@ -23,16 +23,16 @@ variable "yc_bucket_name" {
 }
 
 variable "yc_storage_endpoint_url" {
-  type = string
+  type    = string
   default = "https://storage.yandexcloud.net"
 }
 
 variable "ubuntu_image_id" {
-  type    = string
+  type = string
 }
 
 variable "ubuntu_image_id_mlflow" {
-  type    = string
+  type = string
 }
 
 variable "public_key_path" {
@@ -56,7 +56,7 @@ variable "yc_source_bucket" {
   type = string
 }
 variable "admin_password" {
-  type = string
+  type        = string
   description = "Admin password for the Airflow web interface"
 }
 
@@ -75,20 +75,20 @@ variable "airflow_db_conn_default" {
 }
 # MLflow variables
 variable "yc_mlflow_instance_name" {
-  type = string
+  type        = string
   description = "Name of the MLflow server instance"
 }
 
 # PostgreSQL variables
 variable "yc_postgres_cluster_name" {
-  type = string
+  type        = string
   description = "Name of the PostgreSQL cluster"
 }
 
 variable "postgres_password" {
-  type = string
+  type        = string
   description = "Password for PostgreSQL database used by MLflow"
-  sensitive = true
+  sensitive   = true
 }
 
 variable "instance_user" {
@@ -99,5 +99,15 @@ variable "instance_user" {
 variable "my_public_ip_cidr" {
   description = "Your public IP in CIDR"
   type        = string
+}
+
+variable "kafka_producer_password" {
+  type      = string
+  sensitive = true
+}
+
+variable "kafka_consumer_password" {
+  type      = string
+  sensitive = true
 }
 

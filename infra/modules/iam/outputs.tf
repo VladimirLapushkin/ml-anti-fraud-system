@@ -37,6 +37,6 @@ output "auth_key_created_at" {
 }
 
 output "private_key" {
-  value = regex("-----BEGIN PRIVATE KEY-----[\\s\\S]*$", yandex_iam_service_account_key.sa_auth_key.private_key)
+  value     = regex("-----BEGIN PRIVATE KEY-----[\\s\\S]*$", yandex_iam_service_account_key.sa_auth_key.private_key)
   sensitive = true
 }

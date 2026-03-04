@@ -45,35 +45,60 @@ module "airflow-cluster" {
 }
 
 module "postgres-cluster" {
-  source             = "./modules/postgres-cluster"
-  cluster_name       = var.yc_postgres_cluster_name
-  network_id         = module.network.network_id
-  security_group_id  = module.network.security_group_id
-  subnet_id          = module.network.subnet_id
-  postgres_password  = var.postgres_password
-  provider_config    = var.yc_config
+  source            = "./modules/postgres-cluster"
+  cluster_name      = var.yc_postgres_cluster_name
+  network_id        = module.network.network_id
+  security_group_id = module.network.security_group_id
+  subnet_id         = module.network.subnet_id
+  postgres_password = var.postgres_password
+  provider_config   = var.yc_config
 }
 
 module "mlflow-server" {
-  source             = "./modules/mlflow-server"
-  instance_name      = var.yc_mlflow_instance_name
-  subnet_id          = module.network.subnet_id
-  service_account_id = module.iam.service_account_id
-  ubuntu_image_id_mlflow    = var.ubuntu_image_id_mlflow
-  public_key_path    = var.public_key_path
-  private_key_path   = var.private_key_path
-  s3_endpoint_url    = var.yc_storage_endpoint_url
-  s3_bucket_name     = module.storage.bucket
-  s3_access_key      = module.iam.access_key
-  s3_secret_key      = module.iam.secret_key
-  postgres_password  = var.postgres_password
-  postgres_host      = module.postgres-cluster.postgres_host
-  postgres_port      = module.postgres-cluster.postgres_port
-  postgres_db        = module.postgres-cluster.postgres_db
-  postgres_user      = module.postgres-cluster.postgres_user
-  provider_config    = var.yc_config
-  security_group_id  = module.network.security_group_id
+  source                 = "./modules/mlflow-server"
+  instance_name          = var.yc_mlflow_instance_name
+  subnet_id              = module.network.subnet_id
+  service_account_id     = module.iam.service_account_id
+  ubuntu_image_id_mlflow = var.ubuntu_image_id_mlflow
+  public_key_path        = var.public_key_path
+  private_key_path       = var.private_key_path
+  s3_endpoint_url        = var.yc_storage_endpoint_url
+  s3_bucket_name         = module.storage.bucket
+  s3_access_key          = module.iam.access_key
+  s3_secret_key          = module.iam.secret_key
+  postgres_password      = var.postgres_password
+  postgres_host          = module.postgres-cluster.postgres_host
+  postgres_port          = module.postgres-cluster.postgres_port
+  postgres_db            = module.postgres-cluster.postgres_db
+  postgres_user          = module.postgres-cluster.postgres_user
+  provider_config        = var.yc_config
+  security_group_id      = module.network.security_group_id
 }
+
+module "kafka" {
+  source          = "./modules/kafka"
+  provider_config = var.yc_config
+
+  name              = "fraud-kafka"
+  network_id        = module.network.network_id
+  subnet_ids        = [module.network.subnet_id]
+  security_group_id = module.network.security_group_id
+
+  zone = var.yc_config.zone
+
+  topic_in  = "transactions_in"
+  topic_out = "predictions_out"
+
+  partitions_in      = 16
+  partitions_out     = 16
+  replication_factor = 1
+
+  producer_user     = "producer"
+  consumer_user     = "consumer"
+  producer_password = var.kafka_producer_password
+  consumer_password = var.kafka_consumer_password
+}
+
 
 resource "local_file" "variables_file" {
   content = jsonencode({
@@ -84,7 +109,7 @@ resource "local_file" "variables_file" {
 
     # SSH публичный ключ ДЛЯ DATAPROC (ssh-ed25519 формат!)
     YC_SSH_PUBLIC_KEY = trimspace(file(var.public_key_path))
-    
+
 
     # S3
     S3_ENDPOINT_URL = var.yc_storage_endpoint_url
@@ -103,6 +128,13 @@ resource "local_file" "variables_file" {
     DP_SA_ID                  = module.iam.service_account_id
     DP_SA_AUTH_KEY_PUBLIC_KEY = module.iam.public_key
 
+    # Kafka
+    KAFKA_TOPIC_IN          = module.kafka.topic_in
+    KAFKA_TOPIC_OUT         = module.kafka.topic_out
+    KAFKA_USER              = module.kafka.consumer_user
+    KAFKA_PASSWORD          = module.kafka.consumer_password
+    KAFKA_BOOTSTRAP_SERVERS = local.kafka_bootstrap_servers
+
 
     DP_SA_JSON = jsonencode({
       id                 = module.iam.auth_key_id
@@ -111,7 +143,7 @@ resource "local_file" "variables_file" {
       public_key         = module.iam.public_key
       private_key        = module.iam.private_key
     })
-        # MLflow
+    # MLflow
     MLFLOW_TRACKING_URI = module.mlflow-server.mlflow_tracking_uri
     # PostgreSQL
     POSTGRES_HOST = module.postgres-cluster.postgres_host
@@ -129,7 +161,7 @@ resource "local_file" "variables_file" {
 resource "null_resource" "update_env" {
   provisioner "local-exec" {
     interpreter = ["/usr/bin/env", "bash", "-lc"]
-    command = <<EOT
+    command     = <<EOT
     set -eu
       ENV_FILE="../.env"
       touch "$ENV_FILE"
@@ -151,6 +183,14 @@ resource "null_resource" "update_env" {
       S3_CLEAN_PATH='${var.yc_clean_bucket_path}'
       S3_SOURCE_BUCKET='${var.yc_source_bucket}'
 
+      KAFKA_TOPIC_IN='${module.kafka.topic_in}'
+      KAFKA_TOPIC_OUT='${module.kafka.topic_out}'
+      KAFKA_USER='${module.kafka.consumer_user}'
+      KAFKA_PASSWORD='${module.kafka.consumer_password}'
+      KAFKA_BOOTSTRAP_SERVERS='${local.kafka_bootstrap_servers}'
+
+
+
             # Замена пустых переменных в .env
       sed -i "s|^AIRFLOW_ADMIN_PASSWORD=.*|AIRFLOW_ADMIN_PASSWORD=$AIRFLOW_ADMIN_PASSWORD|" ../.env
       sed -i "s|^S3_ENDPOINT_URL=.*|S3_ENDPOINT_URL=$STORAGE_ENDPOINT_URL|" ../.env
@@ -164,6 +204,37 @@ resource "null_resource" "update_env" {
       else
         echo "MLFLOW_TRACKING_URI=$MLFLOW_TRACKING_URI" >> ../.env
       fi
+
+      if grep -q "^KAFKA_TOPIC_IN=" ../.env; then
+        sed -i "s|^KAFKA_TOPIC_IN=.*|KAFKA_TOPIC_IN=$KAFKA_TOPIC_IN|" ../.env
+      else
+        echo "KAFKA_TOPIC_IN=$KAFKA_TOPIC_IN" >> ../.env
+      fi
+
+      if grep -q "^KAFKA_TOPIC_OUT=" ../.env; then
+        sed -i "s|^KAFKA_TOPIC_OUT=.*|KAFKA_TOPIC_OUT=$KAFKA_TOPIC_OUT|" ../.env
+      else
+        echo "KAFKA_TOPIC_OUT=$KAFKA_TOPIC_OUT" >> ../.env
+      fi
+
+      if grep -q "^KAFKA_USER=" ../.env; then
+        sed -i "s|^KAFKA_USER=.*|KAFKA_USER=$KAFKA_USER|" ../.env
+      else
+        echo "KAFKA_USER=$KAFKA_USER" >> ../.env
+      fi
+
+      if grep -q "^KAFKA_PASSWORD=" ../.env; then
+        sed -i "s|^KAFKA_PASSWORD=.*|KAFKA_PASSWORD=$KAFKA_PASSWORD|" ../.env
+      else
+        echo "KAFKA_PASSWORD=$KAFKA_PASSWORD" >> ../.env
+      fi
+
+      if grep -q "^KAFKA_BOOTSTRAP_SERVERS=" ../.env; then
+        sed -i "s|^KAFKA_BOOTSTRAP_SERVERS=.*|KAFKA_BOOTSTRAP_SERVERS=$KAFKA_BOOTSTRAP_SERVERS|" ../.env
+      else
+        echo "KAFKA_BOOTSTRAP_SERVERS=$KAFKA_BOOTSTRAP_SERVERS" >> ../.env
+      fi
+      
 
       # Добавляем или обновляем переменные PostgreSQL
       if grep -q "^POSTGRES_HOST=" ../.env; then
@@ -207,7 +278,8 @@ resource "null_resource" "update_env" {
     module.iam,
     module.storage,
     module.mlflow-server,
-    module.postgres-cluster
+    module.postgres-cluster,
+    module.kafka
   ]
 
 }

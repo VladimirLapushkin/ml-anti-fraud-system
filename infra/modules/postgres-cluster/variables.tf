@@ -46,7 +46,7 @@ variable "postgres_shared_buffers" {
 variable "mlflow_server_ip" {
   description = "IP address of the MLflow server"
   type        = string
-  default     = "0.0.0.0/0"  # По умолчанию разрешаем подключения с любого IP
+  default     = "0.0.0.0/0" # По умолчанию разрешаем подключения с любого IP
 }
 
 variable "cluster_name" {

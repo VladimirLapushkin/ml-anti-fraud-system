@@ -1,36 +1,23 @@
-# OTUS. Регулярное переобчуние
-За каждый проход DagRun производится очистка по одному файлу из общего хранилища.
+# OTUS. Инференс на потоке
 
-Очищенные данные складываются в бакет в формате parquet.
+Логика такая: один job (kafka-producer) вычитывает данные из бакета и пишет в kafka (топик transactions_in) количество сообщений=(TPS * duration_sec)
+второй job берёт из kafka,делает predict на модели mlflow champion и пишет в kafka (топик predictions_out).
+Работает run-seconds = DURATION секунд.
+т.е. выходит, что его способность предсказать в секунду = количество записанных в kafka (топик predictions_out) / DURATION
+Проведено несколько экспериментов по predict 15, 20, 30, 40 секунд
+Таким образом определяем порог - в районе 2000 сообщений в секунду (чем меньше времени даём, тем больше % от него идёт на раскачку SPARK)
+Скорость Predict обусловлена лёгкой моделью. Но, ка я понимаю, мы сейчас не за сложностью модели гонимся, а за пониманием всей этой балалайки )
+в git выложены скрины UI airflow, kafka.
 
-Имя последнего очищенного файла сохраняется в бакете /clean/history/_watermark
 
-В следующий прогон берётся следующий файл
-
-Запускается задача по обучению, берутся N=5 (Задаётся в Dag) последних очищенных данных, на них проходит обучение, результаты складываются в mlflow, производится автоматическая регистрация модели с сохранением метрик и выбором champion в MLFlow
-
-Видно, что вначале идёт обучение на 1 файле, затем на 2,3 и т.д видно увеличение времени как очистки, так и обучения
-
-После выполенния terraform apply запустить create_s3cmd.sh для создания .s3cfg, копируется в домашнюю директорию
-
-![alt text](screen/screenshot_20260218_153839.jpeg)
-
-![alt text](screen/screenshot_20260218_153943.jpeg)
-
-![alt text](screen/screenshot_20260218_154015.jpeg)
-
-![alt text](screen/screenshot_20260218_154034.jpeg)
-
-![alt text](screen/screenshot_20260218_154055.jpeg)
-
-![alt text](screen/screenshot_20260218_154327.jpeg)
-
-![alt text](screen/screenshot_20260218_154347.jpeg)
-
-![alt text](screen/screenshot_20260218_154423.jpeg)
-
-![alt text](screen/screenshot_20260218_154440.jpeg)
-
-![alt text](screen/screenshot_20260218_154525.jpeg)
-
-![alt text](screen/screenshot_20260218_154711.jpeg)
+![alt text](screenshot_20260303_184837.jpeg)
+![alt text](screenshot_20260303_184900.jpeg)
+![alt text](screenshot_20260303_192452.jpeg)
+![alt text](screenshot_20260303_192720.jpeg)
+![alt text](screenshot_20260303_195801.jpeg)
+![alt text](screenshot_20260303_195950.jpeg)
+![alt text](screenshot_20260303_200632.jpeg)
+![alt text](screenshot_20260303_202058.jpeg)
+![alt text](screenshot_20260303_202207.jpeg)
+![alt text](screenshot_20260303_202401.jpeg)
+![alt text](screenshot_20260303_202441.jpeg)

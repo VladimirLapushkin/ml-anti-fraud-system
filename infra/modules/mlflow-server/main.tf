@@ -7,8 +7,8 @@ resource "yandex_compute_instance" "mlflow_server" {
   }
 
   resources {
-    cores  = 2
-    memory = 8
+    cores         = 2
+    memory        = 8
     core_fraction = 20 # 20% vCPU
   }
 
@@ -20,13 +20,13 @@ resource "yandex_compute_instance" "mlflow_server" {
   }
 
   network_interface {
-  subnet_id          = var.subnet_id
-  nat                = true
-  security_group_ids = [var.security_group_id]
+    subnet_id          = var.subnet_id
+    nat                = true
+    security_group_ids = [var.security_group_id]
   }
 
   metadata = {
-    ssh-keys = "${var.instance_user}:${file(var.public_key_path)}"
+    ssh-keys           = "${var.instance_user}:${file(var.public_key_path)}"
     serial-port-enable = "1"
   }
 
@@ -45,16 +45,16 @@ resource "yandex_compute_instance" "mlflow_server" {
 
   # Копируем конфигурационный файл для MLflow
   provisioner "file" {
-    content     = templatefile("${path.module}/scripts/mlflow.conf.tpl", {
-      s3_endpoint_url = var.s3_endpoint_url
-      s3_bucket_name  = var.s3_bucket_name
-      s3_access_key   = var.s3_access_key
-      s3_secret_key   = var.s3_secret_key
-      mlflow_port     = var.mlflow_port
-      postgres_host   = var.postgres_host
-      postgres_port   = var.postgres_port
-      postgres_db     = var.postgres_db
-      postgres_user   = var.postgres_user
+    content = templatefile("${path.module}/scripts/mlflow.conf.tpl", {
+      s3_endpoint_url   = var.s3_endpoint_url
+      s3_bucket_name    = var.s3_bucket_name
+      s3_access_key     = var.s3_access_key
+      s3_secret_key     = var.s3_secret_key
+      mlflow_port       = var.mlflow_port
+      postgres_host     = var.postgres_host
+      postgres_port     = var.postgres_port
+      postgres_db       = var.postgres_db
+      postgres_user     = var.postgres_user
       postgres_password = var.postgres_password
     })
     destination = "/home/${var.instance_user}/mlflow.conf"

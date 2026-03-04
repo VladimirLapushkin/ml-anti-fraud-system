@@ -21,8 +21,8 @@ resource "yandex_mdb_postgresql_cluster" "postgres_cluster" {
     }
 
     performance_diagnostics {
-      enabled = true
-      sessions_sampling_interval  = 60
+      enabled                      = true
+      sessions_sampling_interval   = 60
       statements_sampling_interval = 600
     }
 

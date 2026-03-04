@@ -1,6 +1,6 @@
 variable "provider_config" {
   description = "Yandex Cloud configuration"
-  type        = object({
+  type = object({
     zone      = string
     folder_id = string
     token     = string

@@ -7,6 +7,8 @@ import argparse
 import traceback
 from datetime import datetime
 from typing import List, Dict, Any, Optional
+import json
+import tempfile
 
 import mlflow
 import mlflow.spark
@@ -187,6 +189,10 @@ def main():
         if not feature_cols:
             raise ValueError("No feature columns selected (numeric cols excluding tx_fraud)")
 
+        
+        
+        
+        
         pipeline = build_pipeline(feature_cols)
 
         rf = pipeline.getStages()[-1]
@@ -216,6 +222,15 @@ def main():
             mlflow.log_param("features_count", len(feature_cols))
             mlflow.log_param("numTrees_grid", "20,50")
             mlflow.log_param("maxDepth_grid", "5,10")
+
+            mlflow.log_param("feature_cols_count", len(feature_cols))
+            mlflow.log_param("feature_cols", ",".join(feature_cols))
+            with tempfile.TemporaryDirectory() as td:
+                fp = os.path.join(td, "feature_cols.json")
+                with open(fp, "w", encoding="utf-8") as f:
+                    json.dump(feature_cols, f, ensure_ascii=False, indent=2)
+                mlflow.log_artifact(fp, artifact_path="schema")
+
             if args.last_n:
                 mlflow.log_param("train_last_n", int(args.last_n))
 

@@ -8,8 +8,8 @@ variable "my_public_ip_cidr" {} # "X.X.X.X/32"
 variable "provider_config" {}
 
 provider "yandex" {
-  alias  = "this"
-  token  = var.provider_config.token
+  alias     = "this"
+  token     = var.provider_config.token
   cloud_id  = var.provider_config.cloud_id
   folder_id = var.provider_config.folder_id
   zone      = var.provider_config.zone
