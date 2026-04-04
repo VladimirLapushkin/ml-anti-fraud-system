@@ -42,6 +42,9 @@ module "airflow-cluster" {
   admin_password     = var.admin_password
   bucket_name        = module.storage.bucket
   provider_config    = var.yc_config
+  yc_storage_endpoint_url  = var.yc_storage_endpoint_url
+  git_repo             = var.git_repo
+  git_ssh_private_key  = var.git_ssh_private_key
 }
 
 module "postgres-cluster" {
@@ -135,6 +138,8 @@ resource "local_file" "variables_file" {
     KAFKA_PASSWORD          = module.kafka.consumer_password
     KAFKA_BOOTSTRAP_SERVERS = local.kafka_bootstrap_servers
 
+    # K8S balancer
+    K8S_BALANCER = var.k8s_balancer_ip
 
     DP_SA_JSON = jsonencode({
       id                 = module.iam.auth_key_id
@@ -188,7 +193,8 @@ resource "null_resource" "update_env" {
       KAFKA_USER='${module.kafka.consumer_user}'
       KAFKA_PASSWORD='${module.kafka.consumer_password}'
       KAFKA_BOOTSTRAP_SERVERS='${local.kafka_bootstrap_servers}'
-
+      
+      K8S_BALANCER='${var.k8s_balancer_ip}'
 
 
             # Замена пустых переменных в .env
@@ -272,6 +278,13 @@ resource "null_resource" "update_env" {
       else
         echo "POSTGRES_CONNECTION_STRING=$POSTGRES_CONNECTION_STRING" >> ../.env
       fi
+
+      if grep -q "^K8S_BALANCER=" ../.env; then
+        sed -i "s|^K8S_BALANCER=.*|K8S_BALANCER=$K8S_BALANCER|" ../.env
+      else
+        echo "K8S_BALANCER=$K8S_BALANCER" >> ../.env
+      fi
+
     EOT
   }
   depends_on = [

@@ -6,6 +6,7 @@ __pycache__
 *.csv
 *.parquet
 *.json
+*.gz
 terraform.tfvars
 *.tfstate
 *.tfstate.backup

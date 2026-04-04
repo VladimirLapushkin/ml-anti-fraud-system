@@ -210,7 +210,7 @@ def main():
            .start()
     )
 
-    # --- сколько реально обработали за run-seconds ---
+    # --- измеряем, сколько реально обработали за run-seconds ---
     import time
     start = time.time()
     total_processed = 0
@@ -218,6 +218,7 @@ def main():
     while True:
         last = query.lastProgress
         if last is not None:
+            # numInputRows — сколько строк прочитано в последнем триггере
             total_processed += last.get("numInputRows", 0)
         if time.time() - start >= args.run_seconds:
             break
@@ -230,6 +231,7 @@ def main():
           f"total_processed={total_processed} elapsed_sec={elapsed:.1f} "
           f"processed_tps={processed_tps:.2f}")
     sys.stdout.flush()
+    # --- конец блока измерений ---
 
     query.stop()
     spark.stop()

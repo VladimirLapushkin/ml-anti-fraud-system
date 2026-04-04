@@ -139,7 +139,7 @@ def main():
            .withColumn("key", F.col("tx_id").cast("string"))
            .selectExpr("CAST(key AS STRING) AS key", "CAST(value AS STRING) AS value")
            .filter(F.col("key").isNotNull() & (F.length(F.col("key")) > 0) & F.col("value").isNotNull())
-           #.dropDuplicates(["key"])
+           #.dropDuplicates(["key"])   # важно для анти-джойна
            #.cache()
     )
     

@@ -1,5 +1,3 @@
-# modules/airflow-cluster/main.tf
-
 resource "yandex_airflow_cluster" "airflow_cluster" {
   name               = var.instance_name
   subnet_ids         = [var.subnet_id]
@@ -7,8 +5,11 @@ resource "yandex_airflow_cluster" "airflow_cluster" {
   admin_password     = var.admin_password
 
   code_sync = {
-    s3 = {
-      bucket = var.bucket_name
+    git_sync = {
+      repo     = var.git_repo
+      branch   = "main"
+      sub_path = "/dags"
+      ssh_key  = file(pathexpand(var.git_ssh_private_key))
     }
   }
 
@@ -32,10 +33,21 @@ resource "yandex_airflow_cluster" "airflow_cluster" {
     "api" = {
       "auth_backends" = "airflow.api.auth.backend.basic_auth,airflow.api.auth.backend.session"
     }
+
     "scheduler" = {
       "dag_dir_list_interval" = "10"
     }
+
+    "bootstrap" = {
+      "bucket"   = var.bucket_name
+      "key"      = "vars/variables.json"
+      "endpoint" = var.yc_storage_endpoint_url
+    }
   }
+
+  pip_packages = [
+    "boto3"
+  ]
 
   logging = {
     enabled   = true

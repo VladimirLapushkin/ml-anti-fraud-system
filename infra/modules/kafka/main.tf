@@ -7,7 +7,7 @@ resource "yandex_mdb_kafka_cluster" "this" {
   security_group_ids = [var.security_group_id]
 
   config {
-    version          = "3.6"
+    version          = "3.7"
     brokers_count    = 1
     zones            = [var.zone]
     assign_public_ip = false

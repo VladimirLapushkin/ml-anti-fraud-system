@@ -111,3 +111,17 @@ variable "kafka_consumer_password" {
   sensitive = true
 }
 
+variable "git_repo" {
+  type      = string
+  sensitive = true
+}
+
+variable "git_ssh_private_key" {
+  type      = string
+  sensitive = true
+}
+
+variable "k8s_balancer_ip" {
+  type        = string
+  description = "External IP of fraud-api LoadBalancer in k8s cluster"
+}

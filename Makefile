@@ -71,12 +71,6 @@ create-venv-archive:
 	bash ./scripts/create_venv_archive.sh
 	@echo "Archive created successfully"
 
-.PHONY: create-venv-archive-wsl
-create-venv-archive-wsl:
-	@echo "Creating .venv archive... wsl"
-	wsl.exe -d Ubuntu -e bash -lc "cd /mnt/c/MLOps/DZ_6 && make create-venv-archive"
-	@echo "Archive created wsl successfully"
-
 
 .PHONY: upload-venv-to-bucket
 upload-venv-to-bucket:
@@ -84,8 +78,12 @@ upload-venv-to-bucket:
 	s3cmd put venvs/venv38.tar.gz s3://$(S3_BUCKET_NAME)/venvs/venv38.tar.gz
 	@echo "Virtual environment archive uploaded successfully"
 
+.PHONY: create-s3cmd
+create-s3cmd:
+	bash ./create_s3cmd.sh
+
 .PHONY: deploy-full
-deploy-full: create-venv-archive-wsl upload-venv-to-bucket upload-src-to-bucket upload-dags-to-bucket upload-data-to-bucket
-	@echo "Full deployment completed sumake ccessfully"
-	@echo "Virtual environment, source code, DAGs, and data have been uploaded to S3"
-	@echo "You can now run the pipeline in Airflow"
+deploy-full: create-s3cmd  upload-vars-to-bucket upload-venv-to-bucket upload-src-to-bucket
+	
+
+

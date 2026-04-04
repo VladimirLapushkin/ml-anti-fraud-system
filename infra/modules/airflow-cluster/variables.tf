@@ -33,3 +33,18 @@ variable "provider_config" {
   })
 }
 
+
+variable "git_ssh_private_key" {
+  type      = string
+  sensitive = true
+}
+
+variable "git_repo" {
+  type      = string
+  sensitive = true
+}
+
+variable "yc_storage_endpoint_url" {
+  description = "Yandex Object Storage endpoint URL"
+  type        = string
+}
